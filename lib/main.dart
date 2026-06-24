@@ -3407,7 +3407,7 @@ class _AdminTripsTabState extends State<_AdminTripsTab> {
                   Switch(
                     value: t.isActive,
                     onChanged: (v) => setState(() => t.isActive = v),
-                    activeThumbColor: AppTheme.easyGreen,
+                    activeColor: AppTheme.easyGreen,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   IconButton(
