@@ -3516,7 +3516,7 @@ class _AdminTripsTabState extends State<_AdminTripsTab> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  initialValue: region,
+                  value: region,
                   dropdownColor: AppTheme.cardBg,
                   style: const TextStyle(color: AppTheme.textPrimary),
                   decoration: const InputDecoration(labelText: 'Region'),
