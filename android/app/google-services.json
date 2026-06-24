@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "578098723691",
+    "project_id": "tourismapp-8af33",
+    "storage_bucket": "tourismapp-8af33.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:578098723691:android:80fbc738ad993af4912a2e",
+        "android_client_info": {
+          "package_name": "com.example.tourism_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHzEGj3Azd48eZPMXHh5gFShA6jKDHjPw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
