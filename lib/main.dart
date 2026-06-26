@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -658,28 +659,55 @@ class AppState {
 
   static List<Booking> allBookings = [];
 
-  static bool login(String email, String password) {
-    // Simple demo auth
-    if (email == 'admin@paktours.pk' && password == 'admin123') {
-      currentUser = users[0];
-      return true;
-    }
-    if (email == 'ali@example.com' && password == 'user123') {
-      currentUser = users[1];
-      return true;
-    }
-    // Register new user
-    for (var u in users) {
-      if (u.email == email) {
-        currentUser = u;
-        return true;
-      }
-    }
-    return false;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+
+static Future<String?> loginWithFirebase(String email, String password) async {
+  try {
+    final credential = await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    // Check if admin (hardcoded admin email check)
+    final isAdmin = email == 'admin@paktours.pk';
+    currentUser = AppUser(
+      id: credential.user!.uid,
+      name: credential.user!.displayName ?? (isAdmin ? 'Admin' : email.split('@')[0]),
+      email: email,
+      phone: credential.user!.phoneNumber ?? '',
+      isAdmin: isAdmin,
+      bookings: [],
+    );
+    return null; // null means success
+  } on FirebaseAuthException catch (e) {
+    return e.message ?? 'Login failed';
   }
+}
 
-  static void logout() => currentUser = null;
-
+static Future<String?> registerWithFirebase(
+    String name, String email, String phone, String password) async {
+  try {
+    final credential = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    await credential.user!.updateDisplayName(name);
+    currentUser = AppUser(
+      id: credential.user!.uid,
+      name: name,
+      email: email,
+      phone: phone,
+      isAdmin: false,
+      bookings: [],
+    );
+    return null; // null means success
+  } on FirebaseAuthException catch (e) {
+    return e.message ?? 'Registration failed';
+  }
+}
+  static Future<void> logout() async {
+  await _auth.signOut();
+  currentUser = null;
+}
   static Booking addBooking(
       TripDestination trip, int persons, String paymentMethod) {
     final booking = Booking(
@@ -924,28 +952,27 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _error;
 
   void _login() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    await Future.delayed(const Duration(milliseconds: 800));
-    final success =
-        AppState.login(_emailCtrl.text.trim(), _passCtrl.text.trim());
-    if (success) {
-      if (mounted) {
-        Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-                builder: (_) => AppState.currentUser!.isAdmin
-                    ? const AdminDashboard()
-                    : const HomeScreen()));
-      }
-    } else {
-      setState(() {
-        _error = 'Invalid credentials. Try admin@paktours.pk / admin123';
-        _loading = false;
-      });
+  setState(() {
+    _loading = true;
+    _error = null;
+  });
+  final error = await AppState.loginWithFirebase(
+      _emailCtrl.text.trim(), _passCtrl.text.trim());
+  if (error == null) {
+    if (mounted) {
+      Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (_) => AppState.currentUser!.isAdmin
+                  ? const AdminDashboard()
+                  : const HomeScreen()));
     }
+  } else {
+    setState(() {
+      _error = error;
+      _loading = false;
+    });
+  }
   }
 
   void _demoLogin(bool admin) {
@@ -1174,28 +1201,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _loading = false;
 
   void _register() async {
-    if (_nameCtrl.text.isEmpty ||
-        _emailCtrl.text.isEmpty ||
-        _passCtrl.text.isEmpty) {
-      return;
-    }
-    setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    final user = AppUser(
-      id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-      name: _nameCtrl.text.trim(),
-      email: _emailCtrl.text.trim(),
-      phone: _phoneCtrl.text.trim(),
-      bookings: [],
-    );
-    AppState.users.add(user);
-    AppState.currentUser = user;
+  if (_nameCtrl.text.isEmpty ||
+      _emailCtrl.text.isEmpty ||
+      _passCtrl.text.isEmpty) return;
+  setState(() => _loading = true);
+  final error = await AppState.registerWithFirebase(
+    _nameCtrl.text.trim(),
+    _emailCtrl.text.trim(),
+    _phoneCtrl.text.trim(),
+    _passCtrl.text.trim(),
+  );
+  if (error == null) {
     if (mounted) {
       Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),
           (_) => false);
     }
+  } else {
+    setState(() => _loading = false);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: AppTheme.danger),
+      );
+    }
+  }
   }
 
   @override
@@ -1621,9 +1651,9 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () {
-                  AppState.logout();
-                  Navigator.pushAndRemoveUntil(
+                onPressed: () async {
+  await AppState.logout();
+  Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(builder: (_) => const LoginScreen()),
                       (_) => false);
@@ -3325,9 +3355,9 @@ class _AdminTripsTabState extends State<_AdminTripsTab> {
         title: const Text('🛡️ Admin — Trips'),
         actions: [
           TextButton.icon(
-            onPressed: () {
-              AppState.logout();
-              Navigator.pushAndRemoveUntil(
+            onPressed: () async {
+  await AppState.logout();
+  Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                   (_) => false);
